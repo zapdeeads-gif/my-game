@@ -1,0 +1,89 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+    paths: [index.html]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          VERSION=$(grep -m1 'Version\s*:' index.html \
+            | sed 's/.*Version[[:space:]]*:[[:space:]]*//' \
+            | sed 's/[[:space:]]*[║╣].*//' \
+            | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          REL_DATE=$(grep -m1 'Released\s*:' index.html \
+            | sed 's/.*Released[[:space:]]*:[[:space:]]*//' \
+            | sed 's/[[:space:]]*[║╣].*//' \
+            | tr -d '[:space:]')
+          echo "date=$REL_DATE" >> $GITHUB_OUTPUT
+
+          CHLOG_TITLE=$(grep -m1 'CHANGELOG v' index.html \
+            | sed 's/.*CHANGELOG //' \
+            | sed 's/[[:space:]]*[║╣].*//' \
+            | sed 's/^[[:space:]]*//')
+          echo "chlog_title=$CHLOG_TITLE" >> $GITHUB_OUTPUT
+
+          ITEMS=$(grep -A 80 'CHANGELOG v' index.html \
+            | grep -E '^\s+.{1,3}\s+(BUG|FIX|FEAT|IMPROVE|CLEAN|APQ|PERF|WARN)-' \
+            | sed 's/^\s*.\{1,3\}\s*/· /' \
+            | sed 's/\s*.\{1,3\}\s*$//' \
+            | head -20)
+          echo "items<<EOF" >> $GITHUB_OUTPUT
+          echo "$ITEMS"     >> $GITHUB_OUTPUT
+          echo "EOF"        >> $GITHUB_OUTPUT
+
+      - name: Check tag exists
+        id: tag_check
+        run: |
+          TAG="${{ steps.meta.outputs.version }}"
+          if git tag | grep -qx "$TAG"; then
+            echo "exists=true"  >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: "🎮 Block Puzzle ${{ steps.meta.outputs.version }}"
+          body: |
+            ## 📋 CHANGELOG ${{ steps.meta.outputs.chlog_title }}
+
+            ${{ steps.meta.outputs.items }}
+
+            ---
+            📅 Released: ${{ steps.meta.outputs.date }}
+            🔗 Play: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          files: index.html
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.tag_check.outputs.exists }}" = "false" ]; then
+            echo "## ✅ Release สำเร็จ!" >> $GITHUB_STEP_SUMMARY
+            echo "- Version: \`${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎮 [เล่นเกม](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ ข้าม — Tag นี้มีอยู่แล้ว" >> $GITHUB_STEP_SUMMARY
+          fi
