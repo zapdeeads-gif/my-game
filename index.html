@@ -12,9 +12,9 @@
   ║    · LZString  (pieroxy/lz-string)                          ║
   ║    · QRCode.js (davidshimjs/qrcodejs)                       ║
   ╠══════════════════════════════════════════════════════════════╣
-  ║  Version     : v1.3.9-16                                     ║
-  ║  Released    : 2026-05-06                                    ║
-  ║  File        : block_puzzle_v1_3_9-15.html                   ║
+  ║  Version     : v1.3.9-15                                     ║
+  ║  Released    : 2026-05-05                                    ║
+  ║  File        : index.html                   ║
   ╠══════════════════════════════════════════════════════════════╣
   ║  CHANGELOG v1.3.9-15 — Bug Fixes (4 bugs)                   ║
   ║  ──────────────────────────────────────────────────────────  ║
@@ -1069,9 +1069,9 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
 
     </script>
     <!-- Firebase SDK (compat v10 — ใช้ได้กับ script tag โดยไม่ต้อง module) -->
-    <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" onerror="console.warn('[Firebase] app CDN failed')"></script>
-    <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" onerror="console.warn('[Firebase] auth CDN failed')"></script>
-    <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" onerror="console.warn('[Firebase] firestore CDN failed')"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" onerror="console.warn('[Firebase] app CDN failed')"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" onerror="console.warn('[Firebase] auth CDN failed')"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" onerror="console.warn('[Firebase] firestore CDN failed')"></script>
     <script>
     /* Firebase stub — ป้องกัน crash เมื่อ Firebase SDK โหลดไม่ได้ (offline / CDN blocked)
      * NOTE: Firebase scripts ถูก defer → stub นี้รันก่อน จากนั้น Firebase จะ overwrite
@@ -4777,7 +4777,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 document.body.classList.add('eye-care');
             // ซ่อน board ตั้งแต่แรก — ป้องกัน flash ก่อน JS สร้าง cells
             document.body.classList.add('board-resetting', 'board-empty');
-        } catch(e) { console.warn('[Init] theme/class setup failed:', e.message); }
+        } catch(e) {}
     </script>
 
 
@@ -8289,7 +8289,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 const base = HAPTIC_BASE[type] || [15];
                 const pat  = base.map(v => Math.round(v * mult));
                 navigator.vibrate(pat.length === 1 ? pat[0] : pat);
-            } catch(e) { console.warn('[Haptic] vibrate failed:', e.message); }
+            } catch(e) {}
         }
 
         // Toggle haptic and persist
@@ -11200,7 +11200,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     s.todayDate = todayStr; s.todayGames = 0;
                     s.todayPieces = 0; s.todayBestScore = 0; s.todayTotalScore = 0;
                     saveStats(s);
-                } catch(e) { console.warn('[Stats] daily reset failed:', e.message); }
+                } catch(e) {}
             }
             _todayScoreDate = todayStr;
 
@@ -11229,7 +11229,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                             s.todayBestScore = Math.max(s.todayBestScore || 0, _todayScore);
                         }
                         saveStats(s);
-                    } catch(e) { console.warn('[Stats] today score save failed:', e.message); }
+                    } catch(e) {}
                 }, 2000);  // debounce 2 วิ ป้องกัน write บ่อยเกิน
             }
 
@@ -11718,8 +11718,8 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
         // Level 3: Share Card (Canvas → PNG)
         // ─────────────────────────────────────────────
 
-        const GAME_VERSION    = '1.3.9-16';  // Major.Minor.Build — อัปเดตทุกครั้งที่แก้ไข
-        const GAME_BUILD_DATE = '2026-05-06'; // วันที่แก้ไขล่าสุด — Remove Stat Bonus + Lucky Spin Pool Fix
+        const GAME_VERSION    = '1.3.8';  // Major.Minor.Build — อัปเดตทุกครั้งที่แก้ไข
+        const GAME_BUILD_DATE = '2026-05-05'; // วันที่แก้ไขล่าสุด — Remove Stat Bonus + Lucky Spin Pool Fix
         const EXPORT_VERSION = '1.0';
         // ── internal build refs ───────────────────────────────────────
         const _BT2 = '5c066c1600221c2d27027e0251'; // fragment B
@@ -12319,6 +12319,31 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
         const SNAP_ROLLING_PTR    = 'blockPuzzleSnapPtr';
         const SNAP_CHECKPOINT_KEY = 'blockPuzzleSnapChk';
 
+        // ── C-FIX: LZString Compression helpers ───────────────────────────────
+        // เพิ่ม effective localStorage quota ~3-5x — board+stats บีบได้ 70-80%
+        // ใช้ prefix byte \x00 แยก compressed vs plain JSON (JSON ไม่มี null char)
+        // backward-compatible: _snapDecode ลอง decompress ก่อน fallback เป็น JSON เดิม
+        function _snapEncode(data) {
+            if (typeof LZString === 'undefined') return JSON.stringify(data);
+            try { return '\x00' + LZString.compress(JSON.stringify(data)); }
+            catch(e) { return JSON.stringify(data); } // fallback: plain JSON
+        }
+        function _snapDecode(raw) {
+            if (!raw) return null;
+            try {
+                if (raw.charCodeAt(0) === 0) {
+                    // compressed format (prefix \x00)
+                    // BUG-C-1 FIX: ตรวจ LZString ก่อน decompress
+                    // ถ้า LZString โหลดไม่ได้ (CDN blocked) แต่ data ถูก compress ไว้แล้ว
+                    // → ไม่ throw ReferenceError → return null อย่างเงียบๆ
+                    if (typeof LZString === 'undefined') return null;
+                    const decompressed = LZString.decompress(raw.slice(1));
+                    return decompressed ? JSON.parse(decompressed) : null;
+                }
+                return JSON.parse(raw); // legacy plain JSON — backward compat
+            } catch(e) { return null; }
+        }
+
         let autoExportEnabled  = localStorage.getItem('blockPuzzleAutoExport') !== 'off';
         let _autoExportPending = false;
         let _gamesThisSession  = 0;
@@ -12336,15 +12361,16 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             // เดิม: ถ้า localStorage เต็ม → setItem throw → snapshot หายโดยไม่มี fallback
             // แก้:  ถ้า quota เกิน → ลอง evict slot เก่าสุด (rolling) แล้ว retry; ถ้ายังไม่ได้ → บันทึกลง IDB แทน
             try {
-                localStorage.setItem(SNAP_ROLLING_KEYS[ptr], JSON.stringify(data));
+                localStorage.setItem(SNAP_ROLLING_KEYS[ptr], _snapEncode(data));
                 localStorage.setItem(SNAP_ROLLING_PTR, String(ptr));
             } catch(quotaErr) {
                 if (quotaErr.name === 'QuotaExceededError' || quotaErr.code === 22) {
                     console.warn('[Snapshot] Rolling quota exceeded — trying IDB fallback');
+                    // BUG-A-1 FIX: _idbSave คืน void ไม่ใช่ Promise — ใช้ try/catch แทน .catch()
                     if (typeof _idbSave === 'function') {
-                        _idbSave(data).catch(function(e) {
+                        try { _idbSave(data); } catch(e) {
                             console.warn('[Snapshot] Rolling IDB fallback also failed:', e.message);
-                        });
+                        }
                     }
                 } else {
                     throw quotaErr;
@@ -12361,14 +12387,15 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             // เดิม: ถ้า localStorage เต็ม → setItem throw → snapshot หายโดยไม่มี fallback
             // แก้:  ถ้า quota เกิน → ลอง IDB เป็น fallback; ถ้ายังไม่ได้ → log warning
             try {
-                localStorage.setItem(SNAP_CHECKPOINT_KEY, JSON.stringify(data));
+                localStorage.setItem(SNAP_CHECKPOINT_KEY, _snapEncode(data));
             } catch(quotaErr) {
                 if (quotaErr.name === 'QuotaExceededError' || quotaErr.code === 22) {
                     console.warn('[Snapshot] Checkpoint quota exceeded — trying IDB fallback');
+                    // BUG-A-1 FIX: _idbSave คืน void ไม่ใช่ Promise — ใช้ try/catch แทน .catch()
                     if (typeof _idbSave === 'function') {
-                        _idbSave(data).catch(function(e) {
+                        try { _idbSave(data); } catch(e) {
                             console.warn('[Snapshot] Checkpoint IDB fallback also failed:', e.message);
-                        });
+                        }
                     }
                 } else {
                     throw quotaErr;
@@ -12381,7 +12408,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             // 1. Checkpoint
             let chkResult = null;
             try {
-                const chk = JSON.parse(localStorage.getItem(SNAP_CHECKPOINT_KEY));
+                const chk = _snapDecode(localStorage.getItem(SNAP_CHECKPOINT_KEY));
                 if (chk && chk.profile) chkResult = { snap: chk, layer: 'checkpoint' };
             } catch { /* skip */ }
 
@@ -12391,7 +12418,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             for (let i = 0; i < 3; i++) {
                 const idx = (ptr - i + 3) % 3;
                 try {
-                    const r = JSON.parse(localStorage.getItem(SNAP_ROLLING_KEYS[idx]));
+                    const r = _snapDecode(localStorage.getItem(SNAP_ROLLING_KEYS[idx]));
                     if (r && r.profile) { rollingResult = { snap: r, layer: 'rolling', slot: idx }; break; }
                 } catch { /* skip */ }
             }
@@ -12402,7 +12429,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             if (chkResult && rollingResult) {
                 const chkTs     = new Date(chkResult.snap.snapshotAt || 0).getTime();
                 const rollingTs = new Date(rollingResult.snap.snapshotAt || 0).getTime();
-                if (rollingTs > chkTs + 60000) return rollingResult;  // rolling ใหม่กว่า > 1 นาที → ใช้ rolling
+                if (rollingTs > chkTs + 60000) return rollingResult;
                 return chkResult;
             }
             if (chkResult)     return chkResult;
@@ -12410,7 +12437,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
 
             // 3. Legacy fallback
             try {
-                const leg = JSON.parse(localStorage.getItem(LOCAL_SNAPSHOT_KEY));
+                const leg = _snapDecode(localStorage.getItem(LOCAL_SNAPSHOT_KEY));
                 if (leg && leg.profile) return { snap: leg, layer: 'legacy' };
             } catch { /* skip */ }
 
@@ -12426,21 +12453,21 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
 
             // checkpoint
             try {
-                const chk = JSON.parse(localStorage.getItem(SNAP_CHECKPOINT_KEY));
+                const chk = _snapDecode(localStorage.getItem(SNAP_CHECKPOINT_KEY));
                 if (chk && chk.profile && chk.snapshotAt) candidates.push({ snap: chk, layer: 'checkpoint' });
             } catch { /* skip */ }
 
             // rolling — ทุก slot
             for (let i = 0; i < 3; i++) {
                 try {
-                    const r = JSON.parse(localStorage.getItem(SNAP_ROLLING_KEYS[i]));
+                    const r = _snapDecode(localStorage.getItem(SNAP_ROLLING_KEYS[i]));
                     if (r && r.profile && r.snapshotAt) candidates.push({ snap: r, layer: 'rolling', slot: i });
                 } catch { /* skip */ }
             }
 
             // legacy
             try {
-                const leg = JSON.parse(localStorage.getItem(LOCAL_SNAPSHOT_KEY));
+                const leg = _snapDecode(localStorage.getItem(LOCAL_SNAPSHOT_KEY));
                 if (leg && leg.profile && leg.snapshotAt) candidates.push({ snap: leg, layer: 'legacy' });
             } catch { /* skip */ }
 
@@ -12511,7 +12538,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             }
 
             // ชั้น 3: legacy (backward compat)
-            localStorage.setItem(LOCAL_SNAPSHOT_KEY, JSON.stringify(data));
+            localStorage.setItem(LOCAL_SNAPSHOT_KEY, _snapEncode(data));
 
             // ชั้น 4: IndexedDB (ทำงานแม้ browser เคลียร์ localStorage)
             _idbSave({ ...data });
@@ -12587,7 +12614,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
         const _IDB_NAME    = 'BlockPuzzleDB';
         const _IDB_STORE   = 'snapshots';
         const _IDB_KEY     = 'latest';
-        const _IDB_VERSION = 1;
+        const _IDB_VERSION = 2;  // A-FIX: v2 เพิ่ม 'queue' store — offline queue ทนต่อ Clear site data
         let _idbDb    = null;  // IndexedDB connection
         let _idbCache = null;  // memory cache — โหลดตอน open, อัปเดตตอน save
 
@@ -12596,7 +12623,16 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 if (!window.indexedDB) { reject(new Error('no IDB')); return; }
                 const req = indexedDB.open(_IDB_NAME, _IDB_VERSION);
                 req.onupgradeneeded = (e) => {
-                    e.target.result.createObjectStore(_IDB_STORE);
+                    const db = e.target.result;
+                    // สร้าง snapshots store ถ้ายังไม่มี (v1)
+                    if (!db.objectStoreNames.contains(_IDB_STORE)) {
+                        db.createObjectStore(_IDB_STORE);
+                    }
+                    // A-FIX: สร้าง queue store ใหม่ (v2) — เก็บ offline cloud queue แยกต่างหาก
+                    // ทนต่อ localStorage clear ซึ่งลบ bpCloudPending ไป
+                    if (!db.objectStoreNames.contains('queue')) {
+                        db.createObjectStore('queue');
+                    }
                 };
                 req.onsuccess = (e) => resolve(e.target.result);
                 req.onerror   = (e) => reject(e.target.error);
@@ -12634,6 +12670,79 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     req.onerror   = () => reject(req.error);
                 });
             } catch(e) { return null; }
+        }
+
+        // ── A-FIX: IDB Queue helpers — offline queue ทนต่อ localStorage clear ──
+        // เขียน queue ลง IDB ด้วย (dual-write) เพื่อกู้คืนได้เมื่อ LS ถูกเคลียร์
+        async function _idbQueueSave(layer, entry) {
+            try {
+                if (!_idbDb) _idbDb = await _idbOpen();
+                const tx = _idbDb.transaction('queue', 'readwrite');
+                tx.objectStore('queue').put(entry, layer);
+                await (tx.done || new Promise((res, rej) => {
+                    tx.oncomplete = res;
+                    tx.onerror    = () => rej(tx.error);
+                    tx.onabort    = () => rej(new Error('IDB queue tx aborted'));
+                }));
+            } catch(e) { /* IDB ไม่รองรับ หรือ private mode — ไม่ critical */ }
+        }
+
+        async function _idbQueueDelete(layer) {
+            try {
+                if (!_idbDb) _idbDb = await _idbOpen();
+                const tx = _idbDb.transaction('queue', 'readwrite');
+                tx.objectStore('queue').delete(layer);
+                await (tx.done || new Promise((res, rej) => {
+                    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+                }));
+            } catch(e) {}
+        }
+
+        async function _idbQueueLoad() {
+            try {
+                if (!_idbDb) _idbDb = await _idbOpen();
+                return await new Promise((resolve, reject) => {
+                    const store = _idbDb.transaction('queue', 'readonly').objectStore('queue');
+                    const result = {};
+                    const req = store.openCursor();
+                    req.onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor) { result[cursor.key] = cursor.value; cursor.continue(); }
+                        else resolve(result);
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            } catch(e) { return {}; }
+        }
+
+        // ── A-FIX: Migration — กู้ queue จาก IDB กลับ localStorage ─────────
+        // เรียกตอน init: ถ้า localStorage ถูก clear → IDB ยังมี queue → migrate กลับ
+        async function _csMigrateQueueFromIdb() {
+            try {
+                const idbQ = await _idbQueueLoad();
+                if (!idbQ || !Object.keys(idbQ).length) return;
+                const lsRaw = localStorage.getItem(_CS_QUEUE_KEY);
+                const lsQ   = lsRaw ? JSON.parse(lsRaw) : {};
+                const now   = Date.now();
+                let changed = false;
+                for (const layer of Object.keys(idbQ)) {
+                    const entry = idbQ[layer];
+                    // BUG-TTL-2 FIX: ตรวจ TTL ก่อน restore — ไม่ restore entry ที่หมดอายุแล้ว
+                    // เดิม: restore ทุก entry จาก IDB โดยไม่ตรวจ → entry ที่ TTL หมดใน LS
+                    //        ถูก restore กลับเข้า LS ทุก session → TTL loop ไม่สิ้นสุด
+                    if (entry.ts && (now - entry.ts) > _CS_QUEUE_TTL_MS) {
+                        console.warn('[Cloud] Migration: TTL expired entry discarded:', layer);
+                        _idbQueueDelete(layer).catch(()=>{});
+                        continue;
+                    }
+                    if (!lsQ[layer]) { lsQ[layer] = entry; changed = true; }
+                }
+                if (changed) {
+                    localStorage.setItem(_CS_QUEUE_KEY, JSON.stringify(lsQ));
+                    console.log('[Cloud] A-FIX: Migrated', Object.keys(idbQ).length,
+                        'queue entries from IDB → localStorage');
+                }
+            } catch(e) { console.warn('[Cloud] Queue IDB migration failed:', e.message); }
         }
 
         // โหลด IDB cache ตอนเริ่ม — ก่อน initAutoExport ทำงาน
@@ -16828,13 +16937,16 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
             const localUid = (typeof _deviceId !== 'undefined' && _deviceId) ? _deviceId : null;
             try {
                 // ใช้ REST + deviceId โดยตรง — ไม่ต้องการ Firebase Auth
-                // ทำให้ทำงานได้จากทุก protocol (content://, file://, https://)
                 _csUid    = localUid;
                 _csUseRest= true;
                 if (!_csUid) {
                     _csUpdateStatus('offline');
                     return;
                 }
+                // A-FIX: migrate queue จาก IDB → localStorage ก่อนทำอื่น
+                // ถ้า user เคย Clear site data → localStorage queue หาย → IDB ยังมี → restore กลับ
+                await _csMigrateQueueFromIdb();
+
                 // Fix #5: ใช้ PIN เดิมถ้ามีอยู่แล้ว — ไม่ overwrite ทุก reload
                 // (Firebase anonymous auth อาจได้ uid ใหม่ทุกครั้ง ทำให้ PIN เปลี่ยน)
                 _csPin = localStorage.getItem(_CS_PIN_KEY) || _csGenPin(_csUid);
@@ -17107,7 +17219,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                                 const ptr = parseInt(localStorage.getItem(SNAP_ROLLING_PTR) || '0');
                                 for (let i = 0; i < 3; i++) {
                                     const idx = (ptr - i + 3) % 3;
-                                    const r = JSON.parse(localStorage.getItem(SNAP_ROLLING_KEYS[idx]) || 'null');
+                                    const r = _snapDecode(localStorage.getItem(SNAP_ROLLING_KEYS[idx]));
                                     if (r && r.gameState && (r.gameState.saveSeq || 0) > bestLocalSeq) {
                                         bestLocalSeq = r.gameState.saveSeq || 0;
                                     }
@@ -17652,7 +17764,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     }
                 };
                 trySync(10);
-            } catch(e) { console.warn('[CloudSync] init sync failed:', e.message); }
+            } catch(e) {}
         }
 
         // ── Shared Keys (ต้องประกาศก่อนทุก function ที่ใช้) ─────────
@@ -17874,13 +17986,15 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 if (_orig._csHooked) return true;  // ไม่ hook ซ้ำ
                 window.saveLocalSnapshot = function(isBest) {
                     _orig.call(this, isBest);
+                    // D-FIX: บันทึก timestamp activity ล่าสุด
+                    // heartbeat จะเลือก interval 90s แทน 5min ขณะผู้เล่นยัง active
+                    _lastActionTs = Date.now();
                     _csQueuePush();
                 };
                 window.saveLocalSnapshot._csHooked = true;
                 return true;
             }
             if (!_doHook()) {
-                // retry เมื่อ DOM พร้อม
                 document.addEventListener('DOMContentLoaded', _doHook);
             }
         })();
@@ -17905,8 +18019,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
 
         // ── Offline Queue helpers ─────────────────────────────────────
         // BUG-OFF-7 FIX: _csSavePending เป็น async + encrypt payload ก่อนเก็บ
-        // เดิม: เก็บ plain JSON → score/streak/PIN ถูก expose ใน localStorage (DevTools อ่านได้)
-        // แก้:  encrypt ก่อน store เหมือนที่ push ไป Firestore; flag encrypted:true ไว้ให้ flush รู้
+        // A-FIX: dual-write ลง IDB + localStorage — IDB ทนต่อ Clear site data
         async function _csSavePending(layer, payload) {
             try {
                 let storedPayload = payload;
@@ -17915,52 +18028,52 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     storedPayload = await _csEncryptPayload(payload, _csUid);
                     isEncrypted   = true;
                 } catch(encErr) {
-                    // encrypt ล้มเหลว (เช่น _csUid ยังไม่พร้อม) → fallback เก็บ plain
                     console.warn('[Cloud] SavePending encrypt fallback:', encErr.message);
                 }
+                const entry = { payload: storedPayload, encrypted: isEncrypted, ts: Date.now() };
+
+                // Primary: IDB (ทนต่อ Clear site data)
+                await _idbQueueSave(layer, entry);
+
+                // Secondary: localStorage (fallback + heartbeat check)
                 const q = JSON.parse(localStorage.getItem(_CS_QUEUE_KEY) || '{}');
-                q[layer] = { payload: storedPayload, encrypted: isEncrypted, ts: Date.now() };
-                // BUG-SAVEPENDING-QUOTA FIX: จัดการ QuotaExceededError
-                // เดิม: ถ้า localStorage เต็ม → setItem throw → catch {} กิน error → offline queue หายเงียบๆ
-                // แก้:  ถ้า quota เกิน → ลองลบ entry เก่าสุดออก 1 รายการแล้ว retry
-                //        ถ้ายังไม่ได้ → log warning (ไม่ crash)
-                try {
-                    localStorage.setItem(_CS_QUEUE_KEY, JSON.stringify(q));
-                } catch(quotaErr) {
-                    if (quotaErr.name === 'QuotaExceededError' || quotaErr.code === 22) {
-                        console.warn('[Cloud] SavePending quota exceeded — evicting oldest entry');
-                        // ลบ layer ที่เก่าที่สุดออกแล้ว retry ครั้งเดียว
+                q[layer] = entry;
+                // A-FIX: loop eviction จนกว่าจะมีที่ว่างพอ (เดิม evict แค่ 1 entry)
+                let attempts = 0;
+                while (attempts++ < 10) {
+                    try {
+                        localStorage.setItem(_CS_QUEUE_KEY, JSON.stringify(q));
+                        break; // สำเร็จ
+                    } catch(quotaErr) {
+                        if (quotaErr.name !== 'QuotaExceededError' && quotaErr.code !== 22) throw quotaErr;
                         const layers = Object.keys(q).filter(k => k !== layer);
-                        if (layers.length) {
-                            let oldest = layers[0];
-                            for (const k of layers) {
-                                if ((q[k].ts || 0) < (q[oldest].ts || 0)) oldest = k;
-                            }
-                            delete q[oldest];
-                            try { localStorage.setItem(_CS_QUEUE_KEY, JSON.stringify(q)); } catch(_) {
-                                console.warn('[Cloud] SavePending still quota exceeded after evict — queue lost');
-                            }
-                        } else {
-                            console.warn('[Cloud] SavePending quota exceeded — no other entries to evict');
+                        if (!layers.length) {
+                            console.warn('[Cloud] SavePending quota — no entries to evict, queue lost from LS');
+                            break;
                         }
-                    } else {
-                        throw quotaErr;
+                        // ลบ entry เก่าสุด แล้ว retry
+                        let oldest = layers[0];
+                        for (const k of layers) if ((q[k].ts||0) < (q[oldest].ts||0)) oldest = k;
+                        delete q[oldest];
+                        console.warn('[Cloud] SavePending evicting:', oldest);
                     }
                 }
-            } catch(e) { console.warn('[CloudSync] savePending failed:', e.message); }
+            } catch(e) {}
         }
         function _csClearPending(layer) {
+            // A-FIX: clear จากทั้ง IDB และ localStorage
+            _idbQueueDelete(layer).catch(()=>{});
             try {
                 const q = JSON.parse(localStorage.getItem(_CS_QUEUE_KEY) || '{}');
                 delete q[layer];
                 if (Object.keys(q).length === 0) localStorage.removeItem(_CS_QUEUE_KEY);
                 else localStorage.setItem(_CS_QUEUE_KEY, JSON.stringify(q));
-            } catch(e) { console.warn('[CloudSync] clearPending failed:', e.message); }
+            } catch(e) {}
         }
         // ── Auto-Sync Fallback: Retry Config ─────────────────────────
         const _CS_MAX_RETRY    = 5;
-        const _CS_RETRY_BASE   = 1500;                    // 1.5s → 3s → 6s → 12s → 24s
-        const _CS_QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // queue เก่าเกิน 7 วัน → ทิ้ง
+        const _CS_RETRY_BASE   = 1500;                     // 1.5s → 3s → 6s → 12s → 24s
+        const _CS_QUEUE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // A-FIX: 30 วัน (เดิม 7) — ทนการลาพักร้อน
         let   _csRetryTimer    = null;
 
         async function _csFlushPending() {
@@ -17992,13 +18105,17 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 const q = JSON.parse(raw);
                 if (!q || !Object.keys(q).length) return;
 
-                // ── TTL: ล้าง queue เก่าเกิน 7 วัน ──────────────────
+                // ── TTL: ล้าง queue เก่าเกิน 30 วัน ─────────────────
                 const now = Date.now();
                 let anyExpired = false;
                 for (const layer of Object.keys(q)) {
                     if (q[layer].ts && (now - q[layer].ts) > _CS_QUEUE_TTL_MS) {
                         console.warn('[Cloud] Queue TTL expired, discarding:', layer);
                         delete q[layer];
+                        // BUG-TTL-1 FIX: ลบจาก IDB ด้วย ไม่ใช่แค่ LS
+                        // เดิม: ลบจาก LS อย่างเดียว → migration ครั้งหน้า restore กลับมาจาก IDB
+                        // → TTL loop ไม่สิ้นสุด
+                        _idbQueueDelete(layer).catch(()=>{});
                         anyExpired = true;
                     }
                 }
@@ -18098,9 +18215,9 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     if (!navigator.onLine) return;
                     if (typeof firebase !== 'undefined' && typeof firebase.firestore === 'function') return;
                     var scripts = [
-                        'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
-                        'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js',
-                        'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js',
+                        'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+                        'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
+                        'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
                     ];
                     var loaded = 0;
                     scripts.forEach(function(src) {
@@ -18206,35 +18323,66 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
 
 
         // ── Heartbeat: pull ทุก 5 นาที แม้ไม่มี network event ────────
-        const _CS_HEARTBEAT_MS = 5 * 60 * 1000;
-        let   _csHeartbeatTimer = null;
+        const _CS_HEARTBEAT_MS        = 5 * 60 * 1000;  // idle: 5 นาที
+        const _CS_HEARTBEAT_ACTIVE_MS = 90 * 1000;       // D-FIX: active play: 90 วินาที
+        // D-FIX: ติดตาม activity — อัปเดตทุกครั้งที่ saveLocalSnapshot ถูกเรียก
+        let _lastActionTs    = 0;
+        let _csHeartbeatTimer  = null;
+        // D-FIX: runId ป้องกัน stale tick จาก setTimeout เก่า fire หลัง stop+restart
+        let _csHeartbeatRunId  = 0;
         // BUG-A FIX: เก็บ interval ปัจจุบันแยกต่างหาก
-        // เพื่อให้ _csStartHeartbeat() ใช้ interval ที่ถูกต้องหลัง tab hide/show
-        // (battery critical ≤10% ใช้ 1 นาที, ปกติ 5 นาที)
         let   _csHeartbeatMs = _CS_HEARTBEAT_MS;
 
         function _csStartHeartbeat() {
             if (_csHeartbeatTimer) return;
-            _csHeartbeatTimer = setInterval(async () => {
-                if (!_csReady || !_csUid || !navigator.onLine) return;
-                if (window._csPulling || window._csFlushing) return; // ไม่ซ้อน
-                try {
-                    const pending = localStorage.getItem(_CS_QUEUE_KEY);
-                    if (pending) {
-                        const pq = JSON.parse(pending) || {};
-                        if (Object.keys(pq).length) await _csFlushPendingWithRetry(0);
+            // D-FIX: ใช้ setTimeout recursive แทน setInterval
+            // → ปรับ interval แบบ dynamic ได้ตาม activity (active=90s, idle=5min)
+            // → runId guard ป้องกัน stale tick จาก timer เก่า double-fire หลัง stop+restart
+            const myRunId = ++_csHeartbeatRunId;
+
+            function _tick() {
+                if (_csHeartbeatRunId !== myRunId) return; // stale tick — discard
+
+                // BUG-D-1 FIX: set sentinel ทันทีก่อนเข้า async IIFE
+                // ป้องกัน _csStartHeartbeat เห็น timer=null ระหว่างที่ async work กำลังทำงาน
+                // → เดิม: timer null window นาน ~60s (flush retry) → start ซ้ำได้ → 2 loop วิ่งพร้อมกัน
+                // → แก้: ใช้ sentinel -1 (ไม่ใช่ null) → guard "if (_csHeartbeatTimer) return" จะ block
+                _csHeartbeatTimer = -1;
+
+                (async () => {
+                    if (_csReady && _csUid && navigator.onLine) {
+                        if (!window._csPulling && !window._csFlushing) {
+                            try {
+                                const pending = localStorage.getItem(_CS_QUEUE_KEY);
+                                if (pending) {
+                                    const pq = JSON.parse(pending) || {};
+                                    if (Object.keys(pq).length) await _csFlushPendingWithRetry(0);
+                                }
+                                await _csPullAndDecide();
+                            } catch(e) { console.warn('[Cloud] Heartbeat:', e.message); }
+                        }
                     }
-                    await _csPullAndDecide();
-                } catch(e) { console.warn('[Cloud] Heartbeat:', e.message); }
-            }, _csHeartbeatMs); // BUG-A FIX: ใช้ _csHeartbeatMs (อาจเป็น 1 นาทีถ้า battery critical)
-            console.log('[Cloud] Heartbeat started (' + (_csHeartbeatMs / 60000).toFixed(1) + ' min)');
+                    // D-FIX: schedule next tick — interval ขึ้นกับ activity ล่าสุด
+                    if (_csHeartbeatRunId === myRunId) {
+                        const isActive = _lastActionTs && (Date.now() - _lastActionTs) < 60000;
+                        const nextMs   = isActive ? _CS_HEARTBEAT_ACTIVE_MS : _csHeartbeatMs;
+                        _csHeartbeatTimer = setTimeout(_tick, nextMs);
+                    }
+                })();
+            }
+
+            const isActive = _lastActionTs && (Date.now() - _lastActionTs) < 60000;
+            const firstMs  = isActive ? _CS_HEARTBEAT_ACTIVE_MS : _csHeartbeatMs;
+            _csHeartbeatTimer = setTimeout(_tick, firstMs);
+            console.log('[Cloud] Heartbeat started (dynamic: active=90s, idle=' +
+                (_csHeartbeatMs / 60000).toFixed(1) + 'min)');
         }
 
         function _csStopHeartbeat() {
-            if (_csHeartbeatTimer) { clearInterval(_csHeartbeatTimer); _csHeartbeatTimer = null; }
+            // D-FIX: bump runId ก่อน → stale tick ที่อาจยิงทีหลังจะ discard ตัวเอง
+            _csHeartbeatRunId++;
+            if (_csHeartbeatTimer) { clearTimeout(_csHeartbeatTimer); _csHeartbeatTimer = null; }
             // BUG-OFF-6 FIX: ยกเลิก retry timer ด้วยเมื่อ stop heartbeat
-            // เดิม: _csRetryTimer ยังวิ่งต่อหลัง tab hidden → ยิง flush ใน background ขณะ offline
-            // แก้:  clear ทั้งคู่พร้อมกัน; flush retry จะ reschedule เองเมื่อ tab กลับมา + online
             if (_csRetryTimer)     { clearTimeout(_csRetryTimer);      _csRetryTimer = null; }
         }
 
@@ -18284,7 +18432,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                 console.log('[Battery] Force save:', label);
                 try {
                     if (typeof saveGameStateNow === 'function') saveGameStateNow();
-                } catch(e) { console.warn('[Battery] saveGameStateNow failed:', e.message); }
+                } catch(e) {}
                 try {
                     if (_csReady && _csUid && navigator.onLine) {
                         // BUG-BATFORCE-DOUBLE-PUSH FIX: เดิมเรียก flush แล้วยัง push อีกรอบ
@@ -18503,7 +18651,7 @@ window.QRCode.CorrectLevel={L:1,M:0,Q:3,H:2};
                     setTimeout(_csShowPinLinkPopup, 1500);
                     setTimeout(_csCheckNewBrowser,  2500);
                 }
-            } catch(e) { console.warn('[CloudSync] _csInit failed:', e.message); }
+            } catch(e) {}
         })();
 
         // ── Full Init (async — Firebase + Pull) ─────────────────────
